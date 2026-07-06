@@ -182,7 +182,7 @@ export default function LogDetail() {
             padding: '6px 8px',
           }}
         >
-          ‹ Back
+          ← Back
         </button>
 
         <div style={{ fontSize: 13, color: '#7c8592', fontWeight: 600 }}>Run Details</div>
@@ -226,7 +226,7 @@ export default function LogDetail() {
       </div>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 76px' }}>
         {loading && <p style={{ color: '#7c8592' }}>Loading...</p>}
         {error && <p style={{ color: '#e5544d' }}>Error: {error}</p>}
 
