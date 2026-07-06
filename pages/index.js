@@ -88,13 +88,13 @@ async function logRun(total) {
   }
 }
 
-async function logEntry(runId, number, status, error) {
+async function logEntry(runId, number, status, error, messageId) {
   if (!runId) return;
   try {
     await fetch('/api/log/entry', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ runId, number, status, error }),
+      body: JSON.stringify({ runId, number, status, error, messageId }),
     });
   } catch {
     // logging failure shouldn't break sending
@@ -124,6 +124,7 @@ export default function Home() {
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState({ total: 0, sent: 0, failed: 0 });
   const [running, setRunning] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
   const consoleRef = useRef(null);
 
   useEffect(() => {
@@ -135,7 +136,7 @@ export default function Home() {
           setApiKeySaved(true);
         }
       })
-      .catch(() => {});
+      .catch((err) => console.error('Failed to load settings:', err));
   }, []);
 
   async function handleSaveKey() {
@@ -143,14 +144,19 @@ export default function Home() {
     if (!key) return alert('API key daalo pehle');
     setSavingKey(true);
     try {
-      await fetch('/api/settings', {
+      const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey: key }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
       setApiKeySaved(true);
-    } catch {
-      alert('Key save nahi hui, dubara try karo');
+    } catch (err) {
+      alert(`Key save nahi hui: ${err.message}`);
+      setApiKeySaved(false);
     } finally {
       setSavingKey(false);
     }
@@ -205,9 +211,7 @@ export default function Home() {
     setStats({ total: contacts.length, sent: 0, failed: 0 });
     stopRequestedRef.current = false;
     setRunning(true);
-    requestAnimationFrame(() => {
-      consoleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    setConsoleOpen(true);
 
     const runId = await logRun(contacts.length);
 
@@ -226,10 +230,12 @@ export default function Home() {
       const maxRetries = 2;
       let ok = false;
       let lastErr = null;
+      let messageId = null;
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          await sendOne(key, number, msg);
+          const result = await sendOne(key, number, msg);
+          messageId = result?.message_id || result?.id || result?.data?.message_id || null;
           ok = true;
           break;
         } catch (err) {
@@ -247,7 +253,7 @@ export default function Home() {
         sent++;
         setStats((s) => ({ ...s, sent }));
         updateLastLog(`[${i + 1}/${contacts.length}] Sent — ${number}`, 'ok');
-        await logEntry(runId, number, 'sent', null);
+        await logEntry(runId, number, 'sent', null, messageId);
       } else {
         failed++;
         setStats((s) => ({ ...s, failed }));
@@ -255,7 +261,7 @@ export default function Home() {
           `[${i + 1}/${contacts.length}] Failed — ${number}: ${lastErr.message}`,
           'err'
         );
-        await logEntry(runId, number, 'failed', lastErr.message);
+        await logEntry(runId, number, 'failed', lastErr.message, null);
       }
 
       if (i < contacts.length - 1 && !stopRequestedRef.current) {
@@ -571,22 +577,25 @@ export default function Home() {
         </div>
       </div>
 
-      <TerminalPanel
-        title="bulk-sender — send.log"
-        logs={logs}
-        stats={stats}
-        running={running}
-        panelRef={consoleRef}
-        logEndRef={logEndRef}
-      />
+      <p className="viewLogsLink" onClick={() => setConsoleOpen(true)} style={{ cursor: 'pointer' }}>
+        View live console
+      </p>
 
     </div>
 
-    <BottomNav
-      onConsoleClick={() =>
-        consoleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
+    <TerminalPanel
+      modal
+      open={consoleOpen}
+      onClose={() => setConsoleOpen(false)}
+      title="bulk-sender — send.log"
+      logs={logs}
+      stats={stats}
+      running={running}
+      panelRef={consoleRef}
+      logEndRef={logEndRef}
     />
+
+    <BottomNav onConsoleClick={() => setConsoleOpen(true)} />
     </>
   );
 }

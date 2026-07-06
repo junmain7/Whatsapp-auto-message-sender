@@ -6,10 +6,15 @@ export default function TerminalPanel({
   emptyText = 'Waiting for a run to start…',
   panelRef,
   logEndRef,
+  open = true,
+  onClose,
+  modal = false,
 }) {
   const showProgress = stats && stats.total > 0;
 
-  return (
+  if (modal && !open) return null;
+
+  const panel = (
     <div className="termWrap" ref={panelRef}>
       <div className="termTitlebar">
         <div className="termDots">
@@ -18,6 +23,11 @@ export default function TerminalPanel({
           <span />
         </div>
         <div className="termTitle">{title}</div>
+        {modal && (
+          <button type="button" className="termClose" onClick={onClose} aria-label="Close console">
+            ✕
+          </button>
+        )}
       </div>
 
       {showProgress && (
@@ -69,6 +79,20 @@ export default function TerminalPanel({
           flex-direction: column;
           box-shadow: 0 12px 40px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.02);
           margin-bottom: 12px;
+          ${modal ? 'margin-bottom: 0; width: 100%; max-width: 560px; max-height: 82vh;' : ''}
+        }
+        .termClose {
+          width: auto;
+          padding: 4px 8px;
+          background: transparent;
+          border: none;
+          color: #8b93a1;
+          font-size: 14px;
+          cursor: pointer;
+          line-height: 1;
+        }
+        .termClose:active {
+          color: #e8e9ec;
         }
         .termTitlebar {
           display: flex;
@@ -128,7 +152,7 @@ export default function TerminalPanel({
           line-height: 1.75;
           padding: 14px 16px;
           overflow-y: auto;
-          max-height: 46vh;
+          max-height: ${modal ? '58vh' : '46vh'};
           flex: 1;
         }
         .termLine {
@@ -160,6 +184,35 @@ export default function TerminalPanel({
         @keyframes termBlink {
           0%, 49% { opacity: 1; }
           50%, 100% { opacity: 0; }
+        }
+      `}</style>
+    </div>
+  );
+
+  if (!modal) return panel;
+
+  return (
+    <div className="termOverlay" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="termOverlayInner">
+        {panel}
+      </div>
+      <style jsx>{`
+        .termOverlay {
+          position: fixed;
+          inset: 0;
+          z-index: 900;
+          background: rgba(5, 6, 9, 0.72);
+          backdrop-filter: blur(3px);
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          padding: 16px;
+          padding-bottom: calc(16px + 78px + env(safe-area-inset-bottom));
+        }
+        .termOverlayInner {
+          width: 100%;
+          max-width: 560px;
+          display: flex;
         }
       `}</style>
     </div>
