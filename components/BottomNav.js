@@ -14,7 +14,7 @@ export default function BottomNav() {
             <path d="M3 10.5 12 3l9 7.5" />
             <path d="M5 9.5V21h14V9.5" />
           </svg>
-          Home
+          <span className="label">Home</span>
         </Link>
 
         <Link href="/logs" className={`navItem ${isHistory ? 'active' : ''}`}>
@@ -22,50 +22,62 @@ export default function BottomNav() {
             <path d="M12 8v4l3 3" />
             <circle cx="12" cy="12" r="9" />
           </svg>
-          History
+          <span className="label">History</span>
         </Link>
       </nav>
 
       <style jsx>{`
         .bottomNav {
           position: fixed;
-          left: 0;
-          right: 0;
-          bottom: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          bottom: calc(14px + env(safe-area-inset-bottom));
           z-index: 500;
           display: flex;
-          background: rgba(20, 23, 29, 0.96);
-          backdrop-filter: blur(14px);
-          -webkit-backdrop-filter: blur(14px);
-          border-top: 1px solid #262b34;
-          padding: 4px 0 calc(4px + env(safe-area-inset-bottom));
+          gap: 6px;
+          background: #1a1e26;
+          border: 1px solid #2a2f39;
+          border-radius: 999px;
+          padding: 6px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
         }
         .navItem {
-          flex: 1;
           display: flex;
-          flex-direction: column;
           align-items: center;
-          justify-content: center;
-          gap: 2px;
-          padding: 5px 0;
-          margin: 0 6px;
-          border-radius: 10px;
+          gap: 6px;
+          padding: 9px 14px;
+          border-radius: 999px;
           color: #7c8592;
           text-decoration: none;
-          font-size: 10.5px;
-          font-weight: 500;
-          transition: color 0.15s ease, background 0.15s ease;
+          font-size: 12.5px;
+          font-weight: 600;
+          transition: color 0.18s ease, background 0.18s ease, padding 0.18s ease;
         }
         .navItem svg {
-          width: 20px;
-          height: 20px;
+          width: 19px;
+          height: 19px;
+          flex-shrink: 0;
+        }
+        .label {
+          max-width: 0;
+          overflow: hidden;
+          white-space: nowrap;
+          opacity: 0;
+          transition: max-width 0.18s ease, opacity 0.18s ease;
         }
         .navItem.active {
-          color: #25d366;
-          background: rgba(37, 211, 102, 0.1);
+          color: #0b0d11;
+          background: #25d366;
+        }
+        .navItem.active .label {
+          max-width: 80px;
+          opacity: 1;
+        }
+        .navItem:not(.active) {
+          padding: 9px;
         }
         .navItem:active {
-          background: rgba(255, 255, 255, 0.06);
+          background: rgba(255, 255, 255, 0.08);
         }
       `}</style>
     </>
