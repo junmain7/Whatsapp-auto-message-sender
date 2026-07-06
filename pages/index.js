@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 const API_URL = 'https://app.leminai.com/api/v1/messages/service';
@@ -109,6 +109,8 @@ async function logFinish(runId, sent, failed, stopped) {
 
 export default function Home() {
   const [apiKey, setApiKey] = useState('');
+  const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
   const [template, setTemplate] = useState('');
   const [contactsText, setContactsText] = useState('');
   const [delay, setDelay] = useState(2500);
@@ -116,6 +118,36 @@ export default function Home() {
   const [stats, setStats] = useState({ total: 0, sent: 0, failed: 0 });
   const [running, setRunning] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.apiKey) {
+          setApiKey(data.apiKey);
+          setApiKeySaved(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleSaveKey() {
+    const key = apiKey.trim();
+    if (!key) return alert('API key daalo pehle');
+    setSavingKey(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: key }),
+      });
+      setApiKeySaved(true);
+    } catch {
+      alert('Key save nahi hui, dubara try karo');
+    } finally {
+      setSavingKey(false);
+    }
+  }
 
   const stopRequestedRef = useRef(false);
   const logEndRef = useRef(null);
@@ -232,7 +264,8 @@ export default function Home() {
   }
 
   return (
-    <div style={{ filter: modalOpen ? 'blur(4px)' : 'none' }} id="mainContent">
+    <>
+    <div id="mainContent">
       <style jsx global>{`
         :root {
           --bg: #0b0d11;
@@ -423,10 +456,30 @@ export default function Home() {
           <input
             type="password"
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              setApiKeySaved(false);
+            }}
             placeholder="Bearer token"
           />
-          <p className="hint">Kept in memory only for this session.</p>
+          <p className="hint">
+            {apiKeySaved
+              ? 'Saved — agli baar apne aap load ho jayegi.'
+              : 'Save karo taki dubara dalne ki zaroorat na pade.'}
+          </p>
+          <button
+            type="button"
+            onClick={handleSaveKey}
+            disabled={savingKey}
+            style={{
+              marginTop: 8,
+              background: apiKeySaved ? '#1a1e26' : 'var(--accent)',
+              color: apiKeySaved ? 'var(--muted)' : '#05210f',
+              border: apiKeySaved ? '1px solid var(--border)' : 'none',
+            }}
+          >
+            {savingKey ? 'Saving...' : apiKeySaved ? 'Saved ✓' : 'Save Key'}
+          </button>
         </div>
       </div>
 
@@ -509,21 +562,24 @@ export default function Home() {
         View past logs →
       </Link>
 
-      {modalOpen && (
+    </div>
+
+    {modalOpen && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.6)',
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
             zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           <div
             style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%,-50%)',
               background: '#111',
               color: '#eee',
               width: '90%',
@@ -586,6 +642,6 @@ export default function Home() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
