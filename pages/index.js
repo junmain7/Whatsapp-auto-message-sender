@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
+import BottomNav from '../components/BottomNav';
+import TerminalPanel from '../components/TerminalPanel';
 
 const API_URL = 'https://app.leminai.com/api/v1/messages/service';
 
@@ -114,7 +115,6 @@ async function logFinish(runId, sent, failed, stopped) {
 }
 
 export default function Home() {
-  const router = useRouter();
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
@@ -124,7 +124,7 @@ export default function Home() {
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState({ total: 0, sent: 0, failed: 0 });
   const [running, setRunning] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+  const consoleRef = useRef(null);
 
   useEffect(() => {
     fetch('/api/settings')
@@ -204,8 +204,10 @@ export default function Home() {
     setLogs([]);
     setStats({ total: contacts.length, sent: 0, failed: 0 });
     stopRequestedRef.current = false;
-    setModalOpen(true);
     setRunning(true);
+    requestAnimationFrame(() => {
+      consoleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 
     const runId = await logRun(contacts.length);
 
@@ -452,145 +454,8 @@ export default function Home() {
         body {
           padding-bottom: 84px;
         }
-        .bottomNav {
-          position: fixed;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          z-index: 500;
-          display: flex;
-          background: rgba(20, 23, 29, 0.92);
-          backdrop-filter: blur(14px);
-          -webkit-backdrop-filter: blur(14px);
-          border-top: 1px solid var(--border);
-          padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-        }
-        .navItem {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 3px;
-          padding: 6px 4px;
-          border-radius: 10px;
-          color: var(--muted);
-          text-decoration: none;
-          font-size: 10.5px;
-          font-weight: 600;
-          letter-spacing: 0.01em;
-          transition: color 0.15s ease, background 0.15s ease;
-        }
-        .navItem svg {
-          width: 21px;
-          height: 21px;
-        }
-        .navItem.active {
-          color: var(--accent);
-          background: rgba(37, 211, 102, 0.1);
-        }
-        .navItem:active {
-          background: rgba(255, 255, 255, 0.06);
-        }
-        .termWrap {
-          background: #0a0c10;
-          border: 1px solid #232830;
-          border-radius: 12px;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.02);
-        }
-        .termTitlebar {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 12px;
-          background: #14171d;
-          border-bottom: 1px solid #232830;
-        }
-        .termDots {
-          display: flex;
-          gap: 6px;
-        }
-        .termDots span {
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-          display: inline-block;
-        }
-        .termDots span:nth-child(1) { background: #ff5f57; }
-        .termDots span:nth-child(2) { background: #febc2e; }
-        .termDots span:nth-child(3) { background: #28c840; }
-        .termTitle {
-          flex: 1;
-          text-align: center;
-          font-size: 12px;
-          color: #8b93a1;
-          font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-          letter-spacing: 0.02em;
-        }
-        .termClose {
-          background: transparent;
-          border: none;
-          color: #8b93a1;
-          width: auto;
-          padding: 2px 6px;
-          font-size: 15px;
-          cursor: pointer;
-        }
-        .termBody {
-          background: #0a0c10;
-          font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-          font-size: 12.5px;
-          line-height: 1.75;
-          padding: 14px 16px;
-          overflow-y: auto;
-          flex: 1;
-        }
-        .termLine {
-          display: flex;
-          gap: 8px;
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
-        .termTime {
-          color: #4d5560;
-          flex-shrink: 0;
-        }
-        .termLine.ok .termText { color: #3ddc84; }
-        .termLine.err .termText { color: #ff6b6b; }
-        .termLine.plain .termText { color: #9aa4b2; }
-        .termCursorRow {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin-top: 2px;
-          color: #3ddc84;
-        }
-        .termCursor {
-          width: 7px;
-          height: 14px;
-          background: #3ddc84;
-          animation: termBlink 1s steps(1) infinite;
-        }
-        @keyframes termBlink {
-          0%, 49% { opacity: 1; }
-          50%, 100% { opacity: 0; }
-        }
-        .termProgressTrack {
-          height: 4px;
-          background: #1c2028;
-          border-radius: 2px;
-          overflow: hidden;
-          margin: 0 16px 12px;
-        }
-        .termProgressFill {
-          height: 100%;
-          background: linear-gradient(90deg, var(--accent-dim), var(--accent));
-          transition: width 0.25s ease;
-        }
       `}</style>
+
 
       <header>
         <h1>Bulk WhatsApp Sender</h1>
@@ -706,125 +571,22 @@ export default function Home() {
         </div>
       </div>
 
+      <TerminalPanel
+        title="bulk-sender — send.log"
+        logs={logs}
+        stats={stats}
+        running={running}
+        panelRef={consoleRef}
+        logEndRef={logEndRef}
+      />
+
     </div>
 
-    {modalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
-            zIndex: 999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-        >
-          <div
-            className="termWrap"
-            style={{
-              width: '100%',
-              maxWidth: 520,
-              maxHeight: '76vh',
-            }}
-          >
-            <div className="termTitlebar">
-              <div className="termDots">
-                <span />
-                <span />
-                <span />
-              </div>
-              <div className="termTitle">bulk-sender — send.log</div>
-              <button className="termClose" onClick={() => setModalOpen(false)}>
-                ✕
-              </button>
-            </div>
-
-            {stats.total > 0 && (
-              <>
-                <div style={{ padding: '10px 16px 0' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: 11,
-                      color: '#6b7280',
-                      fontFamily: 'monospace',
-                      marginBottom: 6,
-                    }}
-                  >
-                    <span>{stats.sent + stats.failed}/{stats.total} processed</span>
-                    <span style={{ color: '#3ddc84' }}>{stats.sent} ok</span>
-                    <span style={{ color: '#ff6b6b' }}>{stats.failed} failed</span>
-                  </div>
-                </div>
-                <div className="termProgressTrack">
-                  <div
-                    className="termProgressFill"
-                    style={{
-                      width: `${((stats.sent + stats.failed) / Math.max(stats.total, 1)) * 100}%`,
-                    }}
-                  />
-                </div>
-              </>
-            )}
-
-            <div id="log" className="termBody">
-              {logs.map((l, i) => (
-                <div key={i} className={`termLine ${l.cls || 'plain'}`}>
-                  <span className="termTime">[{l.time || '--:--:--'}]</span>
-                  <span className="termText">{l.text}</span>
-                </div>
-              ))}
-              {running && (
-                <div className="termCursorRow">
-                  <span>$</span>
-                  <span className="termCursor" />
-                </div>
-              )}
-              <div ref={logEndRef} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      <nav className="bottomNav">
-        <Link
-          href="/"
-          className={`navItem ${router.pathname === '/' ? 'active' : ''}`}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 10.5 12 3l9 7.5" />
-            <path d="M5 9.5V21h14V9.5" />
-          </svg>
-          Home
-        </Link>
-        <button
-          type="button"
-          className={`navItem ${modalOpen ? 'active' : ''}`}
-          onClick={() => setModalOpen(true)}
-          style={{ background: 'transparent', border: 'none' }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <path d="M7 8h10M7 12h10M7 16h6" />
-          </svg>
-          Console
-        </button>
-        <Link
-          href="/logs"
-          className={`navItem ${router.pathname === '/logs' ? 'active' : ''}`}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 8v4l3 3" />
-            <circle cx="12" cy="12" r="9" />
-          </svg>
-          History
-        </Link>
-      </nav>
+    <BottomNav
+      onConsoleClick={() =>
+        consoleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    />
     </>
   );
 }
