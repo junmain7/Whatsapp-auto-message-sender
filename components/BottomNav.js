@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
-export default function BottomNav({ onConsoleClick }) {
+export default function BottomNav() {
   const router = useRouter();
   const isHome = router.pathname === '/';
   const isHistory = router.pathname === '/logs';
@@ -10,31 +10,22 @@ export default function BottomNav({ onConsoleClick }) {
     <>
       <nav className="bottomNav">
         <Link href="/" className={`navItem ${isHome ? 'active' : ''}`}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 10.5 12 3l9 7.5" />
-            <path d="M5 9.5V21h14V9.5" />
-          </svg>
+          <span className="iconWrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 10.5 12 3l9 7.5" />
+              <path d="M5 9.5V21h14V9.5" />
+            </svg>
+          </span>
           Home
         </Link>
 
-        <button
-          type="button"
-          className="navItem"
-          onClick={onConsoleClick}
-          style={{ background: 'transparent', border: 'none' }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <path d="M7 8h10M7 12h10M7 16h6" />
-          </svg>
-          Console
-        </button>
-
         <Link href="/logs" className={`navItem ${isHistory ? 'active' : ''}`}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 8v4l3 3" />
-            <circle cx="12" cy="12" r="9" />
-          </svg>
+          <span className="iconWrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 8v4l3 3" />
+              <circle cx="12" cy="12" r="9" />
+            </svg>
+          </span>
           History
         </Link>
       </nav>
@@ -47,32 +38,44 @@ export default function BottomNav({ onConsoleClick }) {
           bottom: 0;
           z-index: 500;
           display: flex;
+          justify-content: center;
+          gap: 22px;
           background: rgba(20, 23, 29, 0.92);
           backdrop-filter: blur(14px);
           -webkit-backdrop-filter: blur(14px);
           border-top: 1px solid #262b34;
-          padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+          padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
         }
         .navItem {
-          flex: 1;
+          flex: 0 1 140px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 3px;
-          padding: 7px 4px;
-          border-radius: 12px;
+          gap: 4px;
+          padding: 8px 6px;
+          border-radius: 14px;
           color: #7c8592;
           text-decoration: none;
-          font-size: 10.5px;
+          font-size: 11px;
           font-weight: 600;
-          letter-spacing: 0.01em;
-          transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, text-shadow 0.15s ease;
+          letter-spacing: 0.02em;
+          transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, text-shadow 0.18s ease, transform 0.15s ease;
+        }
+        .iconWrap {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.03);
+          transition: background 0.18s ease, box-shadow 0.18s ease;
         }
         .navItem svg {
-          width: 21px;
-          height: 21px;
-          transition: filter 0.15s ease;
+          width: 20px;
+          height: 20px;
+          transition: filter 0.18s ease;
         }
         .navItem.active {
           color: #25d366;
@@ -80,10 +83,15 @@ export default function BottomNav({ onConsoleClick }) {
           box-shadow: 0 0 16px 2px rgba(37, 211, 102, 0.45), inset 0 0 10px rgba(37, 211, 102, 0.12);
           text-shadow: 0 0 10px rgba(37, 211, 102, 0.8);
         }
+        .navItem.active .iconWrap {
+          background: rgba(37, 211, 102, 0.18);
+          box-shadow: 0 0 14px 2px rgba(37, 211, 102, 0.4);
+        }
         .navItem.active svg {
           filter: drop-shadow(0 0 5px rgba(37, 211, 102, 0.9));
         }
         .navItem:active {
+          transform: scale(0.94);
           background: rgba(255, 255, 255, 0.06);
         }
       `}</style>

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import BottomNav from '../components/BottomNav';
 import TerminalPanel from '../components/TerminalPanel';
 
 const API_URL = 'https://app.leminai.com/api/v1/messages/service';
@@ -595,7 +594,6 @@ export default function Home() {
       logEndRef={logEndRef}
     />
 
-    <BottomNav onConsoleClick={() => setConsoleOpen(true)} />
     </>
   );
 }
