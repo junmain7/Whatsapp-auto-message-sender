@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import TerminalPanel from '../components/TerminalPanel';
+import { getCached, setCached } from '../lib/pageCache';
+
+const SETTINGS_CACHE_KEY = 'settings';
 
 const API_URL = 'https://app.leminai.com/api/v1/messages/service';
 
@@ -141,9 +144,15 @@ async function logFinish(runId, sent, failed, stopped) {
 }
 
 export default function Home() {
-  const [apiKey, setApiKey] = useState('');
-  const [apiKeySaved, setApiKeySaved] = useState(false);
+  const cachedSettings = getCached(SETTINGS_CACHE_KEY);
+  const [apiKey, setApiKey] = useState(cachedSettings?.apiKey || '');
+  const [apiKeySaved, setApiKeySaved] = useState(!!cachedSettings?.apiKey);
   const [savingKey, setSavingKey] = useState(false);
+  // 'idle' | 'checking' | 'valid' | 'invalid'
+  const [keyCheckStatus, setKeyCheckStatus] = useState('idle');
+  const [keyCheckReason, setKeyCheckReason] = useState('');
+  const keyCheckTimerRef = useRef(null);
+  const keyCheckTokenRef = useRef(0);
   const [template, setTemplate] = useState('');
   const [contactsText, setContactsText] = useState('');
   const FIXED_DELAY_MS = 120000; // 2 minute — fixed, safety ke liye
@@ -174,10 +183,55 @@ export default function Home() {
         if (data.apiKey) {
           setApiKey(data.apiKey);
           setApiKeySaved(true);
+          setKeyCheckStatus('valid');
         }
+        setCached(SETTINGS_CACHE_KEY, data);
       })
       .catch((err) => console.error('Failed to load settings:', err));
   }, []);
+
+  // Jaise hi user type karna band kare, key ko silently validate karo —
+  // bina save kiye. Result ke hisaab se Save button enable/disable hoga.
+  useEffect(() => {
+    const key = apiKey.trim();
+    clearTimeout(keyCheckTimerRef.current);
+
+    if (apiKeySaved) return; // already ek confirmed valid key hai, dubara check na karo
+
+    if (!key) {
+      setKeyCheckStatus('idle');
+      setKeyCheckReason('');
+      return;
+    }
+
+    setKeyCheckStatus('checking');
+    const myToken = ++keyCheckTokenRef.current;
+
+    keyCheckTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/settings/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey: key }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (myToken !== keyCheckTokenRef.current) return; // stale response, ignore
+        if (data.valid) {
+          setKeyCheckStatus('valid');
+          setKeyCheckReason('');
+        } else {
+          setKeyCheckStatus('invalid');
+          setKeyCheckReason(data.reason || 'API key invalid hai.');
+        }
+      } catch (err) {
+        if (myToken !== keyCheckTokenRef.current) return;
+        setKeyCheckStatus('invalid');
+        setKeyCheckReason(`Check nahi ho paya: ${err.message}`);
+      }
+    }, 700);
+
+    return () => clearTimeout(keyCheckTimerRef.current);
+  }, [apiKey, apiKeySaved]);
 
   async function pollCronQueue() {
     try {
@@ -245,7 +299,7 @@ export default function Home() {
       setCronConsoleOpen(true);
       pollCronQueue();
     } catch (err) {
-      alert(`Queue nahi ho paya: ${err.message}`);
+      alert(`Background sending start nahi ho paya: ${err.message}`);
     } finally {
       setQueuing(false);
     }
@@ -253,7 +307,8 @@ export default function Home() {
 
   async function handleSaveKey() {
     const key = apiKey.trim();
-    if (!key) return alert('API key daalo pehle');
+    if (!key) return;
+    if (keyCheckStatus !== 'valid') return; // safety net, button already disabled in this case
     setSavingKey(true);
     try {
       const res = await fetch('/api/settings', {
@@ -266,9 +321,11 @@ export default function Home() {
         throw new Error(data.error || `HTTP ${res.status}`);
       }
       setApiKeySaved(true);
+      setKeyCheckStatus('valid');
     } catch (err) {
-      alert(`Key save nahi hui: ${err.message}`);
       setApiKeySaved(false);
+      setKeyCheckStatus('invalid');
+      setKeyCheckReason(err.message || 'Kuch galat ho gaya, dobara try karo.');
     } finally {
       setSavingKey(false);
     }
@@ -318,7 +375,7 @@ export default function Home() {
     if (contacts.length === 0) return alert('Kam se kam ek contact daalo');
 
     if (cronStatus && cronStatus.status === 'running') {
-      return alert('Background queue abhi chal rahi hai — pehle usse complete/stop karo, tabhi manual send start hoga.');
+      return alert('Background sending abhi chal rahi hai — pehle usse complete/stop karo, tabhi manual send start hoga.');
     }
 
     setCheckingDup(true);
@@ -669,11 +726,33 @@ export default function Home() {
         }
         body {
           padding-bottom: 84px;
+          padding-top: 66px;
+        }
+        header.topBar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 400;
+          margin: 0;
+          padding: 14px 16px;
+          background: rgba(11, 13, 17, 0.98);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border-bottom: 1px solid var(--border);
+        }
+        header.topBar h1 {
+          max-width: 560px;
+          margin: 0 auto 3px;
+        }
+        header.topBar p.sub {
+          max-width: 560px;
+          margin: 0 auto;
         }
       `}</style>
 
 
-      <header>
+      <header className="topBar">
         <h1>Bulk WhatsApp Sender</h1>
         <p className="sub">Runs in your browser, logs saved to database</p>
       </header>
@@ -691,15 +770,31 @@ export default function Home() {
             }}
             placeholder="Bearer token"
           />
-          <p className="hint">
+          <p
+            className="hint"
+            style={{
+              color:
+                keyCheckStatus === 'valid' || apiKeySaved
+                  ? 'var(--accent)'
+                  : keyCheckStatus === 'invalid'
+                  ? 'var(--danger)'
+                  : 'var(--muted)',
+            }}
+          >
             {apiKeySaved
               ? 'Saved — agli baar apne aap load ho jayegi.'
+              : keyCheckStatus === 'checking'
+              ? 'Key check ho rahi hai...'
+              : keyCheckStatus === 'valid'
+              ? 'Key valid hai — ab save kar sakte ho.'
+              : keyCheckStatus === 'invalid'
+              ? keyCheckReason || 'Ye key valid nahi hai.'
               : 'Save karo taki dubara dalne ki zaroorat na pade.'}
           </p>
           <button
             type="button"
             onClick={handleSaveKey}
-            disabled={savingKey}
+            disabled={savingKey || (!apiKeySaved && keyCheckStatus !== 'valid')}
             style={{
               marginTop: 8,
               background: apiKeySaved ? '#1a1e26' : 'var(--accent)',
@@ -707,7 +802,15 @@ export default function Home() {
               border: apiKeySaved ? '1px solid var(--border)' : 'none',
             }}
           >
-            {savingKey ? 'Saving...' : apiKeySaved ? 'Saved ✓' : 'Save Key'}
+            {savingKey
+              ? 'Saving...'
+              : apiKeySaved
+              ? 'Saved ✓'
+              : keyCheckStatus === 'checking'
+              ? 'Checking key...'
+              : keyCheckStatus === 'invalid'
+              ? 'Invalid key'
+              : 'Save Key'}
           </button>
         </div>
       </div>
@@ -757,13 +860,13 @@ export default function Home() {
 
       {cronStatus && cronStatus.status === 'running' && (
         <div className="card cronBanner">
-          <h2>Background Queue Running</h2>
+          <h2>Sending in Background</h2>
           <p className="hint">
-            Cronjob se background me bhej raha hai — {cronStatus.currentIndex}/{cronStatus.total} done ·{' '}
+            Background me messages bhej raha hai — {cronStatus.currentIndex}/{cronStatus.total} done ·{' '}
             <span style={{ color: 'var(--accent)' }}>{cronStatus.sent} sent</span> ·{' '}
             <span style={{ color: 'var(--danger)' }}>{cronStatus.failed} failed</span>
           </p>
-          <p className="hint">App band kar do to bhi chalta rahega, jab tak cronjob URL hit hota rahe.</p>
+          <p className="hint">App band kar do to bhi chalta rahega, sending automatically continue hogi.</p>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <button
               type="button"
@@ -773,7 +876,7 @@ export default function Home() {
               View Logs
             </button>
             <button type="button" onClick={handleStopQueue} style={{ background: 'var(--danger)', color: '#fff' }}>
-              Stop Queue
+              Stop Sending
             </button>
           </div>
         </div>
@@ -796,7 +899,7 @@ export default function Home() {
           onClick={handleQueueBackground}
           disabled={queuing || !apiKeySaved}
         >
-          {queuing ? 'Queuing...' : 'Queue for Background (Cron)'}
+          {queuing ? 'Starting...' : 'Send in Background'}
         </button>
       )}
 
@@ -833,7 +936,7 @@ export default function Home() {
       modal
       open={cronConsoleOpen}
       onClose={() => setCronConsoleOpen(false)}
-      title="cron-queue — send.log"
+      title="background — send.log"
       logs={cronLogs}
       stats={
         cronStatus
@@ -841,7 +944,7 @@ export default function Home() {
           : { total: 0, sent: 0, failed: 0 }
       }
       running={!!cronStatus && cronStatus.status === 'running'}
-      emptyText="Background queue abhi khali hai."
+      emptyText="Background sending abhi khali hai."
     />
 
     {dupQueue.length > 0 && (

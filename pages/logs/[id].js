@@ -1,6 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { getCached, setCached } from '../../lib/pageCache';
+import { SkeletonDetailCard, SkeletonDetailRow } from '../../components/Skeleton';
 
+const POLL_MS = 6000;
 const STATUS_RANK = { read: 0, delivered: 1, sent: 2, failed: 3, unknown: 4, checking: 5 };
 
 function rankOf(status) {
@@ -47,25 +50,47 @@ export default function LogDetail() {
   const router = useRouter();
   const { id } = router.query;
 
-  const [run, setRun] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = id ? `log-detail:${id}` : null;
+  const cached = cacheKey ? getCached(cacheKey) : null;
+
+  const [run, setRun] = useState(cached || null);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [statusMap, setStatusMap] = useState({});
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const pollRef = useRef(null);
 
-  useEffect(() => {
+  function loadRun(silent) {
     if (!id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     fetch(`/api/log/get?runId=${encodeURIComponent(id)}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.error) setError(data.error);
-        else setRun(data.run);
+        if (data.error) {
+          if (!silent) setError(data.error);
+          return;
+        }
+        setRun(data.run);
+        setCached(`log-detail:${id}`, data.run);
+        setError(null);
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!silent) setError(err.message);
+      })
+      .finally(() => {
+        if (!silent) setLoading(false);
+      });
+  }
+
+  useEffect(() => {
+    if (!id) return;
+    // agar cache already hai to turant dikhao, background me silently refresh karo
+    loadRun(!!getCached(`log-detail:${id}`));
+    pollRef.current = setInterval(() => loadRun(true), POLL_MS);
+    return () => clearInterval(pollRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const refreshStatuses = useCallback(async () => {
@@ -227,10 +252,30 @@ export default function LogDetail() {
 
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 76px' }}>
-        {loading && <p style={{ color: '#7c8592' }}>Loading...</p>}
-        {error && <p style={{ color: '#e5544d' }}>Error: {error}</p>}
+        {loading && (
+          <>
+            <SkeletonDetailCard />
+            <div
+              style={{
+                background: '#14171d',
+                border: '1px solid #262b34',
+                borderRadius: 10,
+                overflow: 'hidden',
+              }}
+            >
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <SkeletonDetailRow key={i} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        {error && !loading && <p style={{ color: '#e5544d' }}>Error: {error}</p>}
 
-        {run && (
+        {!loading && run && (
           <>
             <div
               style={{

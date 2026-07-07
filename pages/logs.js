@@ -1,28 +1,50 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
+import { getCached, setCached } from '../lib/pageCache';
+import { SkeletonRunList } from '../components/Skeleton';
+
+const CACHE_KEY = 'logs-list';
+const POLL_MS = 6000;
 
 export default function Logs() {
   const router = useRouter();
-  const [runs, setRuns] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCached(CACHE_KEY);
+
+  const [runs, setRuns] = useState(cached || []);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState(null);
   const [confirmRunId, setConfirmRunId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const pollRef = useRef(null);
 
-  function loadRuns() {
-    setLoading(true);
+  function loadRuns(silent) {
+    if (!silent) setLoading(true);
     fetch('/api/log/list')
       .then((res) => res.json())
       .then((data) => {
-        if (data.error) setError(data.error);
-        else setRuns(data.runs || []);
+        if (data.error) {
+          if (!silent) setError(data.error);
+          return;
+        }
+        const next = data.runs || [];
+        setRuns(next);
+        setCached(CACHE_KEY, next);
+        setError(null);
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!silent) setError(err.message);
+      })
+      .finally(() => {
+        if (!silent) setLoading(false);
+      });
   }
 
   useEffect(() => {
-    loadRuns();
+    // agar cache already hai to turant dikhao, background me silently refresh karo
+    loadRuns(!!cached);
+    pollRef.current = setInterval(() => loadRuns(true), POLL_MS);
+    return () => clearInterval(pollRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleConfirmDelete() {
@@ -36,7 +58,11 @@ export default function Logs() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      setRuns((prev) => prev.filter((r) => r.id !== confirmRunId));
+      setRuns((prev) => {
+        const next = prev.filter((r) => r.id !== confirmRunId);
+        setCached(CACHE_KEY, next);
+        return next;
+      });
     } catch (err) {
       alert(`Delete nahi hua: ${err.message}`);
     } finally {
@@ -46,77 +72,90 @@ export default function Logs() {
   }
 
   return (
-    <div style={{ maxWidth: 560, margin: '0 auto', padding: '20px 16px 60px' }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: '#0b0d11' }}>
       <style jsx global>{`
         body {
           background: #0b0d11;
           color: #e8e9ec;
           font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+          overflow: hidden;
         }
       `}</style>
 
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ fontSize: 19, margin: '8px 0 2px' }}>Send Logs</h1>
+      {/* Fixed top bar - scroll nahi hoga */}
+      <div
+        style={{
+          flexShrink: 0,
+          padding: '16px 16px 14px',
+          borderBottom: '1px solid #262b34',
+          background: '#0b0d11',
+        }}
+      >
+        <h1 style={{ fontSize: 19, margin: '0 0 2px' }}>Send Logs</h1>
         <p style={{ color: '#7c8592', fontSize: 12.5, margin: 0 }}>
           Last 50 runs, most recent first
         </p>
       </div>
 
-      {loading && <p style={{ color: '#7c8592' }}>Loading...</p>}
-      {error && <p style={{ color: '#e5544d' }}>Error: {error}</p>}
-      {!loading && !error && runs.length === 0 && (
-        <p style={{ color: '#7c8592' }}>Abhi tak koi run nahi hua.</p>
-      )}
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 76px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
+        {loading && <SkeletonRunList count={6} />}
+        {error && !loading && <p style={{ color: '#e5544d' }}>Error: {error}</p>}
+        {!loading && !error && runs.length === 0 && (
+          <p style={{ color: '#7c8592' }}>Abhi tak koi run nahi hua.</p>
+        )}
 
-      {runs.map((run) => (
-        <div
-          key={run.id}
-          onClick={() => router.push(`/logs/${run.id}`)}
-          style={{
-            background: '#14171d',
-            border: '1px solid #262b34',
-            borderRadius: 10,
-            padding: 14,
-            marginBottom: 10,
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 13.5, fontWeight: 600 }}>
-              {new Date(run.startedAt).toLocaleString()}
-            </div>
-            <div style={{ fontSize: 11.5, color: '#7c8592', marginTop: 2 }}>
-              Status: {run.status || 'unknown'} · Total: {run.total ?? '-'} · Sent:{' '}
-              <span style={{ color: '#25d366' }}>{run.sent ?? 0}</span> · Failed:{' '}
-              <span style={{ color: '#e5544d' }}>{run.failed ?? 0}</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setConfirmRunId(run.id);
-              }}
-              aria-label="Delete this run"
+        {!loading &&
+          runs.map((run) => (
+            <div
+              key={run.id}
+              onClick={() => router.push(`/logs/${run.id}`)}
               style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#7c8592',
-                fontSize: 16,
+                background: '#14171d',
+                border: '1px solid #262b34',
+                borderRadius: 10,
+                padding: 14,
+                marginBottom: 10,
                 cursor: 'pointer',
-                padding: 4,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
               }}
             >
-              🗑
-            </button>
-            <div style={{ color: '#7c8592', fontSize: 14 }}>›</div>
-          </div>
-        </div>
-      ))}
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>
+                  {new Date(run.startedAt).toLocaleString()}
+                </div>
+                <div style={{ fontSize: 11.5, color: '#7c8592', marginTop: 2 }}>
+                  Status: {run.status || 'unknown'} · Total: {run.total ?? '-'} · Sent:{' '}
+                  <span style={{ color: '#25d366' }}>{run.sent ?? 0}</span> · Failed:{' '}
+                  <span style={{ color: '#e5544d' }}>{run.failed ?? 0}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmRunId(run.id);
+                  }}
+                  aria-label="Delete this run"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#7c8592',
+                    fontSize: 16,
+                    cursor: 'pointer',
+                    padding: 4,
+                  }}
+                >
+                  🗑
+                </button>
+                <div style={{ color: '#7c8592', fontSize: 14 }}>›</div>
+              </div>
+            </div>
+          ))}
+      </div>
 
       {confirmRunId && (
         <div
