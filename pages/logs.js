@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
 
 export default function Logs() {
   const router = useRouter();
@@ -57,9 +56,6 @@ export default function Logs() {
       `}</style>
 
       <div style={{ marginBottom: 18 }}>
-        <Link href="/" style={{ color: '#7c8592', fontSize: 13 }}>
-          ← Back to sender
-        </Link>
         <h1 style={{ fontSize: 19, margin: '8px 0 2px' }}>Send Logs</h1>
         <p style={{ color: '#7c8592', fontSize: 12.5, margin: 0 }}>
           Last 50 runs, most recent first
