@@ -576,10 +576,6 @@ export default function Home() {
         </div>
       </div>
 
-      <p className="viewLogsLink" onClick={() => setConsoleOpen(true)} style={{ cursor: 'pointer' }}>
-        View live console
-      </p>
-
     </div>
 
     <TerminalPanel
