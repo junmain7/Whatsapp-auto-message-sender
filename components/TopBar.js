@@ -13,10 +13,9 @@ export default function TopBar({ title, subtitle }) {
           right: 0;
           z-index: 400;
           padding: 14px 16px;
-          background: rgba(11, 13, 17, 0.98);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
+          background: #14171d;
           border-bottom: 1px solid #262b34;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
         }
         h1 {
           font-size: 19px;
