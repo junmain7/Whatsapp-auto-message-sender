@@ -26,7 +26,7 @@ export default function BottomNav() {
         </Link>
       </nav>
 
-      <style jsx>{`
+      <style jsx global>{`
         .bottomNav {
           position: fixed;
           left: 0;
