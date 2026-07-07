@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import TerminalPanel from '../components/TerminalPanel';
+import TopBar from '../components/TopBar';
 import { getCached, setCached } from '../lib/pageCache';
 
 const SETTINGS_CACHE_KEY = 'settings';
@@ -728,34 +729,10 @@ export default function Home() {
           padding-bottom: 84px;
           padding-top: 66px;
         }
-        header.topBar {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          z-index: 400;
-          margin: 0;
-          padding: 14px 16px;
-          background: rgba(11, 13, 17, 0.98);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border-bottom: 1px solid var(--border);
-        }
-        header.topBar h1 {
-          max-width: 560px;
-          margin: 0 auto 3px;
-        }
-        header.topBar p.sub {
-          max-width: 560px;
-          margin: 0 auto;
-        }
       `}</style>
 
 
-      <header className="topBar">
-        <h1>Bulk WhatsApp Sender</h1>
-        <p className="sub">Runs in your browser, logs saved to database</p>
-      </header>
+      <TopBar title="Bulk WhatsApp Sender" subtitle="Runs in your browser, logs saved to database" />
 
       <div className="card">
         <h2>Connection</h2>

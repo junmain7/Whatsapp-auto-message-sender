@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { getCached, setCached } from '../lib/pageCache';
 import { SkeletonRunList } from '../components/Skeleton';
+import TopBar from '../components/TopBar';
 
 const CACHE_KEY = 'logs-list';
 const POLL_MS = 6000;
@@ -72,41 +73,28 @@ export default function Logs() {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: '#0b0d11' }}>
+    <div>
       <style jsx global>{`
         body {
           background: #0b0d11;
           color: #e8e9ec;
           font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
-          overflow: hidden;
+          margin: 0 auto;
+          padding: 66px 16px 84px;
+          max-width: 560px;
         }
       `}</style>
 
-      {/* Fixed top bar - scroll nahi hoga */}
-      <div
-        style={{
-          flexShrink: 0,
-          padding: '16px 16px 14px',
-          borderBottom: '1px solid #262b34',
-          background: '#0b0d11',
-        }}
-      >
-        <h1 style={{ fontSize: 19, margin: '0 0 2px' }}>Send Logs</h1>
-        <p style={{ color: '#7c8592', fontSize: 12.5, margin: 0 }}>
-          Last 50 runs, most recent first
-        </p>
-      </div>
+      <TopBar title="Send Logs" subtitle="Last 50 runs, most recent first" />
 
-      {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 76px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
-        {loading && <SkeletonRunList count={6} />}
-        {error && !loading && <p style={{ color: '#e5544d' }}>Error: {error}</p>}
-        {!loading && !error && runs.length === 0 && (
-          <p style={{ color: '#7c8592' }}>Abhi tak koi run nahi hua.</p>
-        )}
+      {loading && <SkeletonRunList count={6} />}
+      {error && !loading && <p style={{ color: '#e5544d' }}>Error: {error}</p>}
+      {!loading && !error && runs.length === 0 && (
+        <p style={{ color: '#7c8592' }}>Abhi tak koi run nahi hua.</p>
+      )}
 
-        {!loading &&
-          runs.map((run) => (
+      {!loading &&
+        runs.map((run) => (
             <div
               key={run.id}
               onClick={() => router.push(`/logs/${run.id}`)}
@@ -155,7 +143,6 @@ export default function Logs() {
               </div>
             </div>
           ))}
-      </div>
 
       {confirmRunId && (
         <div
